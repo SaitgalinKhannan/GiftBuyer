@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS payments
 (
     id                         SERIAL PRIMARY KEY,
-    user_id                    BIGINT      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    user_id                    BIGINT      NOT NULL REFERENCES users (telegram_id) ON DELETE CASCADE,
     currency                   VARCHAR(10) NOT NULL,
     amount                     INT         NOT NULL,
     payload                    TEXT        NOT NULL,

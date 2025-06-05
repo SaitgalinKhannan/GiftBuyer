@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"GiftBuyer/internal/models"
+	"GiftBuyer/internal/model"
 	"GiftBuyer/pkg/database"
 	"context"
 	"database/sql"
@@ -18,7 +18,7 @@ func NewUserRepository(db *database.DB) UserRepository {
 	return &userRepository{db: db.DB}
 }
 
-func (r *userRepository) Create(ctx context.Context, user *models.User) error {
+func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 	query := `
 		INSERT INTO users (telegram_id, username, balance, is_active)
 		VALUES ($1, $2, $3, $4)
@@ -38,8 +38,8 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-func (r *userRepository) GetByTelegramID(ctx context.Context, telegramID int64) (*models.User, error) {
-	var user models.User
+func (r *userRepository) GetByTelegramID(ctx context.Context, telegramID int64) (*model.User, error) {
+	var user model.User
 	query := `
 		SELECT id, telegram_id, username, balance, created_at, is_active
 		FROM users
@@ -56,13 +56,13 @@ func (r *userRepository) GetByTelegramID(ctx context.Context, telegramID int64) 
 	return &user, nil
 }
 
-func (r *userRepository) UpdateBalance(ctx context.Context, userID int, amount float64) error {
+func (r *userRepository) UpdateBalance(ctx context.Context, telegramID int64, amount int) error {
 	query := `
 		UPDATE users
 		SET balance = balance + $1
-		WHERE id = $2`
+		WHERE telegram_id = $2`
 
-	result, err := r.db.ExecContext(ctx, query, amount, userID)
+	result, err := r.db.ExecContext(ctx, query, amount, telegramID)
 	if err != nil {
 		return fmt.Errorf("failed to update balance: %w", err)
 	}
@@ -79,11 +79,11 @@ func (r *userRepository) UpdateBalance(ctx context.Context, userID int, amount f
 	return nil
 }
 
-func (r *userRepository) GetBalance(ctx context.Context, userID int) (float64, error) {
+func (r *userRepository) GetBalance(ctx context.Context, telegramID int64) (float64, error) {
 	var balance float64
-	query := `SELECT balance FROM users WHERE id = $1`
+	query := `SELECT balance FROM users WHERE telegram_id = $1`
 
-	err := r.db.GetContext(ctx, &balance, query, userID)
+	err := r.db.GetContext(ctx, &balance, query, telegramID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, fmt.Errorf("user not found")
@@ -95,14 +95,14 @@ func (r *userRepository) GetBalance(ctx context.Context, userID int) (float64, e
 }
 
 // GetByID Дополнительные полезные методы
-func (r *userRepository) GetByID(ctx context.Context, id int) (*models.User, error) {
-	var user models.User
+func (r *userRepository) GetByID(ctx context.Context, telegramID int64) (*model.User, error) {
+	var user model.User
 	query := `
 		SELECT id, telegram_id, username, balance, created_at, is_active
 		FROM users
-		WHERE id = $1`
+		WHERE telegram_id = $1`
 
-	err := r.db.GetContext(ctx, &user, query, id)
+	err := r.db.GetContext(ctx, &user, query, telegramID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -113,17 +113,19 @@ func (r *userRepository) GetByID(ctx context.Context, id int) (*models.User, err
 	return &user, nil
 }
 
-func (r *userRepository) Update(ctx context.Context, user *models.User) error {
+func (r *userRepository) Update(ctx context.Context, user *model.User) error {
 	query := `
 		UPDATE users
-		SET username = $1, balance = $2, is_active = $3
-		WHERE id = $4`
+		SET username = $1, first_name = $2, last_name = $3, balance = $4, is_active = $5
+		WHERE telegram_id = $6`
 
 	result, err := r.db.ExecContext(ctx, query,
 		user.Username,
+		user.FirstName,
+		user.LastName,
 		user.Balance,
 		user.IsActive,
-		user.ID,
+		user.TelegramID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
@@ -141,13 +143,13 @@ func (r *userRepository) Update(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-func (r *userRepository) SetBalance(ctx context.Context, userID int, balance float64) error {
+func (r *userRepository) SetBalance(ctx context.Context, telegramID int64, balance float64) error {
 	query := `
 		UPDATE users
 		SET balance = $1
-		WHERE id = $2`
+		WHERE telegram_id = $2`
 
-	result, err := r.db.ExecContext(ctx, query, balance, userID)
+	result, err := r.db.ExecContext(ctx, query, balance, telegramID)
 	if err != nil {
 		return fmt.Errorf("failed to set balance: %w", err)
 	}
@@ -164,7 +166,7 @@ func (r *userRepository) SetBalance(ctx context.Context, userID int, balance flo
 	return nil
 }
 
-func (r *userRepository) DecrementBalance(ctx context.Context, userID int, amount float64) error {
+func (r *userRepository) DecrementBalance(ctx context.Context, telegramID int64, amount float64) error {
 	// Используем транзакцию для безопасного списания
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
@@ -185,7 +187,7 @@ func (r *userRepository) DecrementBalance(ctx context.Context, userID int, amoun
 
 	// Проверяем текущий баланс
 	var currentBalance float64
-	err = tx.GetContext(ctx, &currentBalance, "SELECT balance FROM users WHERE id = $1", userID)
+	err = tx.GetContext(ctx, &currentBalance, "SELECT balance FROM users WHERE telegram_id = $1", telegramID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("user not found")
@@ -199,7 +201,7 @@ func (r *userRepository) DecrementBalance(ctx context.Context, userID int, amoun
 	}
 
 	// Списываем средства
-	result, err := tx.ExecContext(ctx, "UPDATE users SET balance = balance - $1 WHERE id = $2", amount, userID)
+	result, err := tx.ExecContext(ctx, "UPDATE users SET balance = balance - $1 WHERE telegram_id = $2", amount, telegramID)
 	if err != nil {
 		return fmt.Errorf("failed to decrement balance: %w", err)
 	}
@@ -222,8 +224,8 @@ func (r *userRepository) DecrementBalance(ctx context.Context, userID int, amoun
 }
 
 // GetUsersWithMinBalance Метод для получения пользователей с балансом больше указанной суммы
-func (r *userRepository) GetUsersWithMinBalance(ctx context.Context, minBalance float64) ([]*models.User, error) {
-	var users []*models.User
+func (r *userRepository) GetUsersWithMinBalance(ctx context.Context, minBalance float64) ([]*model.User, error) {
+	var users []*model.User
 	query := `
 		SELECT id, telegram_id, username, balance, created_at, is_active
 		FROM users

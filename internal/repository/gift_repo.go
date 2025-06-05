@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"GiftBuyer/internal/models"
+	"GiftBuyer/internal/model"
 	"GiftBuyer/pkg/database"
 	"context"
 	"database/sql"
@@ -18,7 +18,7 @@ func NewGiftRepository(db *database.DB) GiftRepository {
 	return &giftRepository{db: db.DB}
 }
 
-func (g giftRepository) Create(ctx context.Context, gift *models.Gift) error {
+func (g giftRepository) Create(ctx context.Context, gift *model.Gift) error {
 	query := `
 		INSERT INTO gifts (id, star_count, upgrade_star_count, total_count, remaining_count)
 		VALUES ($1, $2, $3, $4, $5)
@@ -39,8 +39,8 @@ func (g giftRepository) Create(ctx context.Context, gift *models.Gift) error {
 	return nil
 }
 
-func (g giftRepository) GetById(ctx context.Context, id string) (*models.Gift, error) {
-	var gift models.Gift
+func (g giftRepository) GetById(ctx context.Context, id string) (*model.Gift, error) {
+	var gift model.Gift
 	query := `
 		SELECT id, star_count, upgrade_star_count, total_count, remaining_count, created_at
 		FROM gifts
@@ -57,8 +57,8 @@ func (g giftRepository) GetById(ctx context.Context, id string) (*models.Gift, e
 	return &gift, nil
 }
 
-func (g giftRepository) GetAll(ctx context.Context) ([]*models.Gift, error) {
-	var gifts []*models.Gift
+func (g giftRepository) GetAll(ctx context.Context) ([]*model.Gift, error) {
+	var gifts []*model.Gift
 	query := `
 		SELECT id, star_count, upgrade_star_count, total_count, remaining_count, created_at
 		FROM gifts`

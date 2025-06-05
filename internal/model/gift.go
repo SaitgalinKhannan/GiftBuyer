@@ -1,4 +1,4 @@
-package models
+package model
 
 type Gift struct {
 	ID               string `json:"id" db:"id"`                                           // Поле ID → столбец "id"
