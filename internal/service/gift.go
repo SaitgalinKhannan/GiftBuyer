@@ -119,13 +119,17 @@ func (g *giftService) buildNotificationMessage(gifts []telego.Gift) string {
 	return fmt.Sprintf("Новые подарки доступны! Количество: %d", len(gifts))
 }
 
-func (g *giftService) BuyGift(ctx *th.Context, gift telego.Gift, userID int64) error {
+func (g *giftService) BuyGift(ctx *th.Context, gift telego.Gift, user *model.User) error {
+	if user == nil {
+		return fmt.Errorf("user is nil")
+	}
+
 	err := ctx.Bot().SendGift(ctx, &telego.SendGiftParams{
-		UserID: userID,
+		UserID: user.TelegramID,
 		GiftID: gift.ID,
 	})
 	if err != nil {
-		return fmt.Errorf("ошибка покупки подарка: %w", err)
+		return fmt.Errorf("ошибка покупки подарка для пользователя %d: %w", user.TelegramID, err)
 	}
 	return nil
 }
