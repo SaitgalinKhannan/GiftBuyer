@@ -25,7 +25,27 @@ type UserService interface {
 	CompareAndUpdate(ctx context.Context, user *model.User, telegramUser *telego.User) error
 }
 
+type SettingsService interface {
+	GetByUserID(ctx context.Context, userID int) (*model.UserSettings, error)
+	Update(ctx context.Context, settings *model.UserSettings) error
+	Create(ctx context.Context, userID int) error
+}
+
+type GiftService interface {
+	Create(ctx context.Context, gift *telego.Gift) error
+	GetById(ctx context.Context, id string) (*model.Gift, error)
+	GetAll(ctx context.Context) ([]*model.Gift, error)
+	SaveNewGifts(ctx context.Context, newGifts []telego.Gift) error
+	CompareGiftLists(gifts []*model.Gift, telegramGifts []telego.Gift) []telego.Gift
+	GetAvailableGifts(ctx context.Context, bot *telego.Bot) ([]telego.Gift, error)
+	NotifyUsers(ctx context.Context, newGifts []telego.Gift, bot *telego.Bot) error
+	BuyGift(ctx *th.Context, gift telego.Gift, userID int64) error
+	CheckAndProcessNewGifts(ctx context.Context, bot *telego.Bot) error
+}
+
 type Services struct {
-	Payment PaymentService
-	User    UserService
+	Payment  PaymentService
+	User     UserService
+	Settings SettingsService
+	Gift     GiftService
 }

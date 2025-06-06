@@ -1,8 +1,8 @@
 package repository
 
 import (
+	"GiftBuyer/internal/database"
 	"GiftBuyer/internal/model"
-	"GiftBuyer/pkg/database"
 	"context"
 	"fmt"
 	"github.com/jmoiron/sqlx"
@@ -16,7 +16,7 @@ func NewPaymentRepository(db *database.DB) PaymentRepository {
 	return &paymentRepository{db: db.DB}
 }
 
-func (p paymentRepository) Create(ctx context.Context, payment *model.Payment) error {
+func (p *paymentRepository) Create(ctx context.Context, payment *model.Payment) error {
 	fmt.Println(*payment)
 	query := `
 		INSERT INTO payments (user_id, currency, amount, payload, telegram_payment_charge_id)

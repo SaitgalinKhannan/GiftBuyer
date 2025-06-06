@@ -3,17 +3,20 @@ package main
 import (
 	. "GiftBuyer/app"
 	"GiftBuyer/config"
+	"GiftBuyer/internal/database"
 	"GiftBuyer/internal/handler"
 	"GiftBuyer/internal/repository"
+	"GiftBuyer/internal/scheduler"
 	"GiftBuyer/internal/service"
-	"GiftBuyer/pkg/database"
-	"GiftBuyer/pkg/logging"
+	"GiftBuyer/logging"
 	"context"
 	"fmt"
 	. "github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -41,13 +44,16 @@ func main() {
 
 	// Создание репозиториев
 	repos := &repository.Repositories{
-		User:    repository.NewUserRepository(db),
-		Gift:    repository.NewGiftRepository(db),
-		Payment: repository.NewPaymentRepository(db),
+		User:     repository.NewUserRepository(db),
+		Gift:     repository.NewGiftRepository(db),
+		Payment:  repository.NewPaymentRepository(db),
+		Settings: repository.NewSettingsRepository(db),
 	}
 	services := &service.Services{
-		Payment: service.NewPaymentService(repos.Payment, repos.User),
-		User:    service.NewUserService(repos.User),
+		Payment:  service.NewPaymentService(repos.Payment, repos.User),
+		User:     service.NewUserService(repos.User),
+		Settings: service.NewSettingsService(repos.Settings),
+		Gift:     service.NewGiftService(repos.Gift, cfg),
 	}
 
 	bot, err := NewBot(cfg.BotToken, WithDefaultLogger(true, true))
@@ -76,6 +82,10 @@ func main() {
 		},
 	}
 
+	if botApp == nil {
+		log.Fatal("botApp не инициализирован")
+	}
+
 	botUser, err := bot.GetMe(context.Background())
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -92,6 +102,41 @@ func main() {
 	defer func() { _ = bh.Stop() }()
 	handler.RegisterHandlers(bh, botApp)
 
-	// Start handling updates
-	_ = bh.Start()
+	_, err = bot.GetAvailableGifts(ctx)
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
+
+	// 1. Создаём контекст с возможностью отмены
+	ctxWithCancel, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 2. Инициализируем и запускаем watcher
+	log.Println("Запуск GiftWatcher...")
+	go scheduler.StartGiftWatcher(ctxWithCancel, botApp)
+
+	// 3. Подписываемся на сигналы завершения
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	defer func() {
+		signal.Stop(sigChan)
+		cancel()
+	}()
+
+	// 4. Запускаем бота
+	go func() {
+		if err := bh.Start(); err != nil {
+			log.Printf("Ошибка при запуске BotHandler: %v", err)
+		}
+	}()
+
+	// 5. Ожидаем сигнал завершения
+	<-sigChan
+	log.Println("Получен сигнал завершения. Остановка...")
+
+	// 6. Корректно завершаем работу
+	if err := bh.Stop(); err != nil {
+		log.Printf("Ошибка при остановке бота: %v", err)
+	}
+	cancel()
 }

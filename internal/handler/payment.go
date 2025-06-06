@@ -10,7 +10,6 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
 	"log"
-	"strconv"
 )
 
 type PaymentHandler struct {
@@ -67,66 +66,6 @@ func (h *PaymentHandler) HandleTopUpBalanceCallback() (th.Handler, th.Predicate)
 	}, th.CallbackDataEqual("top_up_balance")
 }
 
-func (h *PaymentHandler) HandleAmountInputMessage() (th.Handler, th.Predicate) {
-	return func(ctx *th.Context, update Update) error {
-		if update.Message.Text == "" {
-			return nil
-		}
-
-		userID := update.Message.From.ID
-		chatID := update.Message.Chat.ChatID()
-
-		// Получаем текущее состояние
-		state := h.stateStorage.GetState(userID)
-
-		switch state {
-		case StateWaitingTopUpAmount:
-			amount, err := strconv.ParseUint(update.Message.Text, 10, 64)
-			if err != nil {
-				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(chatID, "Введите сумму числом!"))
-				return nil
-			}
-
-			// Отправка инвойса
-			link, err := ctx.Bot().CreateInvoiceLink(ctx, &CreateInvoiceLinkParams{
-				Title:         "Пополнение баланса",
-				Description:   fmt.Sprintf("Пополнение на %d звёзд", amount),
-				Payload:       fmt.Sprintf("topup_%d", userID),
-				ProviderToken: "",
-				Currency:      "XTR",
-				Prices: []LabeledPrice{
-					{Label: "STARS", Amount: int(amount)},
-				},
-			})
-
-			if err != nil {
-				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(chatID, "Ошибка при создании инвойса."))
-				return err
-			}
-
-			// Creating message
-			msg := tu.Message(
-				update.Message.Chat.ChatID(),
-				"<b>Пополните счёт в боте по ссылке ниже.</b>",
-			).WithReplyMarkup(TopUpBalanceKeyboard(int(amount), *link)).WithParseMode("HTML")
-
-			_, err = ctx.Bot().SendMessage(ctx, msg)
-
-			if err != nil {
-				return err
-			}
-
-			// Сбрасываем состояние
-			h.stateStorage.ClearState(userID)
-
-		default:
-			return ctx.Next(update)
-		}
-
-		return nil
-	}, th.AnyMessage()
-}
-
 // Обработка pre-checkout запроса
 func (h *PaymentHandler) handlePreCheckoutQuery(ctx *th.Context, query *PreCheckoutQuery) error {
 	log.Printf("Pre-checkout запрос от пользователя %d, payload: %s, общая сумма: %d STARS",
@@ -180,8 +119,9 @@ func (h *PaymentHandler) handleSuccessfulPayment(ctx *th.Context, message *Messa
 
 	// Отправка подтверждения пользователю
 	_, err = ctx.Bot().SendMessage(ctx, &SendMessageParams{
-		ChatID: tu.ID(message.Chat.ID),
-		Text:   fmt.Sprintf("✅ Платеж на сумму %d успешно обработан!", payment.TotalAmount),
+		ChatID:      tu.ID(message.Chat.ID),
+		Text:        fmt.Sprintf("✅ Платеж на сумму %d успешно обработан!", payment.TotalAmount),
+		ReplyMarkup: GoMainKeyboard(),
 	})
 	return err
 }

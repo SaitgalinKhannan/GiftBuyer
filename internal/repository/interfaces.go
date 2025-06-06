@@ -27,8 +27,15 @@ type PaymentRepository interface {
 	Create(ctx context.Context, payment *model.Payment) error
 }
 
+type SettingsRepository interface {
+	GetByUserID(ctx context.Context, userID int) (*model.UserSettings, error)
+	Update(ctx context.Context, settings *model.UserSettings) error
+	Create(ctx context.Context, userID int) error
+}
+
 type Repositories struct {
-	User    UserRepository
-	Gift    GiftRepository
-	Payment PaymentRepository
+	User     UserRepository
+	Gift     GiftRepository
+	Payment  PaymentRepository
+	Settings SettingsRepository
 }

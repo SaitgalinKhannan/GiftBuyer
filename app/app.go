@@ -2,9 +2,9 @@ package app
 
 import (
 	"GiftBuyer/config"
+	"GiftBuyer/internal/database"
 	"GiftBuyer/internal/repository"
 	"GiftBuyer/internal/service"
-	"GiftBuyer/pkg/database"
 	"github.com/mymmrac/telego"
 	"sync"
 )
@@ -12,8 +12,9 @@ import (
 type State uint
 
 const (
-	StateDefault State = iota
+	_ State = iota
 	StateWaitingTopUpAmount
+	StateWaitingChannelUsername
 )
 
 type StateStorage struct {

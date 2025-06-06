@@ -1,8 +1,8 @@
 package repository
 
 import (
+	"GiftBuyer/internal/database"
 	"GiftBuyer/internal/model"
-	"GiftBuyer/pkg/database"
 	"context"
 	"database/sql"
 	"errors"

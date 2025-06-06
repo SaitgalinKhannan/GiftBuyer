@@ -41,7 +41,7 @@ func Connect(databaseURL string) (*DB, error) {
 
 func applyMigrations(databaseURL string) error {
 	m, err := migrate.New(
-		"file://pkg/database/migrations",
+		"file://migrations",
 		databaseURL,
 	)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
 	"log"
+	"runtime/debug"
 )
 
 func RegisterHandlers(bh *th.BotHandler, a *app.App) {
@@ -33,7 +34,7 @@ func RegisterHandlers(bh *th.BotHandler, a *app.App) {
 	bh.Use(func(ctx *th.Context, update telego.Update) error {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("Recovered from panic: %v", r)
+				log.Printf("Recovered from panic: %v\nStack: %s", r, debug.Stack())
 			}
 		}()
 		return ctx.Next(update)
@@ -57,7 +58,12 @@ func RegisterHandlers(bh *th.BotHandler, a *app.App) {
 	bh.Handle(paymentHandler.HandlePayment())
 	bh.Handle(HandleStartCommand(a.Services.User))
 	bh.Handle(paymentHandler.HandleTopUpBalanceCallback())
-	bh.Handle(HandleCallback(a.StateStorage))
+	bh.Handle(HandleCallback(a))
 	bh.Handle(HandleGifts())
-	bh.Handle(paymentHandler.HandleAmountInputMessage())
+	bh.Handle(StateHandler(a))
+	bh.Handle(HandleSettingsCallback(a))
+	bh.Handle(HandlePriceLimitUpdateCallback(a))
+	bh.Handle(HandleSupplyLimitUpdateCallback(a))
+	bh.Handle(HandleAutoBuyCyclesUpdateCallback(a))
+	bh.Handle(HandleChannelSettingsCallback(a))
 }

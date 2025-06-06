@@ -6,6 +6,14 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
+func GoMainKeyboard() *telego.InlineKeyboardMarkup {
+	return tu.InlineKeyboard(
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("🔙 Назад").WithCallbackData("back_to_start"),
+		),
+	)
+}
+
 func StartKeyboard() *telego.InlineKeyboardMarkup {
 	return tu.InlineKeyboard(
 		tu.InlineKeyboardRow(
