@@ -7,5 +7,6 @@ FROM users;
 
 -- 2. Переименовываем поля вместо удаления
 ALTER TABLE users
-    RENAME COLUMN first_name TO first_name_old,
+    RENAME COLUMN first_name TO first_name_old;
+ALTER TABLE users
     RENAME COLUMN last_name TO last_name_old;
