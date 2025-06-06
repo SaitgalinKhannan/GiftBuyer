@@ -1,3 +1,5 @@
+-- noinspection SqlConstantExpressionForFile
+
 -- Удаление таблицы gifts
 DROP TABLE IF EXISTS gifts;
 

@@ -1,3 +1,5 @@
+-- noinspection SqlConstantExpressionForFile
+
 -- Создание таблицы payments
 CREATE TABLE IF NOT EXISTS payments
 (

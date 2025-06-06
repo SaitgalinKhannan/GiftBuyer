@@ -1,3 +1,5 @@
+-- noinspection SqlConstantExpressionForFile
+    
 -- 1. Удаление старого внешнего ключа
 ALTER TABLE payments
     DROP CONSTRAINT IF EXISTS payments_user_id_fkey;

@@ -1,3 +1,7 @@
+-- noinspection SqlConstantExpressionForFile
+
+-- noinspection SqlConstantExpressionForFile
+
 -- Добавляем новые поля
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS first_name VARCHAR(100),

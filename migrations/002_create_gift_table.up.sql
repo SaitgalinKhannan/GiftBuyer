@@ -1,3 +1,5 @@
+-- noinspection SqlConstantExpressionForFile
+
 -- Создание таблицы gifts
 CREATE TABLE IF NOT EXISTS gifts
 (
