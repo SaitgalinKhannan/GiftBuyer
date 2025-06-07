@@ -4,6 +4,7 @@ import (
 	. "GiftBuyer/app"
 	. "GiftBuyer/internal/keyboard"
 	"GiftBuyer/internal/service"
+	"GiftBuyer/logging"
 	"context"
 	"fmt"
 	. "github.com/mymmrac/telego"
@@ -14,11 +15,11 @@ import (
 
 type PaymentHandler struct {
 	paymentService service.PaymentService
-	stateStorage   *StateStorage
+	app            *App
 }
 
-func NewPaymentHandler(paymentService service.PaymentService, storage *StateStorage) *PaymentHandler {
-	return &PaymentHandler{paymentService: paymentService, stateStorage: storage}
+func NewPaymentHandler(paymentService service.PaymentService, a *App) *PaymentHandler {
+	return &PaymentHandler{paymentService: paymentService, app: a}
 }
 
 // Предикат для определения платежных обновлений
@@ -50,7 +51,7 @@ func (h *PaymentHandler) HandleTopUpBalanceCallback() (th.Handler, th.Predicate)
 		_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 		// Устанавливаем состояние ожидания суммы
-		h.stateStorage.SetState(update.CallbackQuery.From.ID, StateWaitingTopUpAmount)
+		h.app.StateStorage.SetState(update.CallbackQuery.From.ID, StateWaitingTopUpAmount)
 
 		_, err := ctx.Bot().EditMessageText(ctx, &EditMessageTextParams{
 			ChatID:      update.CallbackQuery.Message.GetChat().ChatID(),
@@ -101,14 +102,16 @@ func (h *PaymentHandler) handleSuccessfulPayment(ctx *th.Context, message *Messa
 		return nil
 	}
 
-	log.Printf(
-		"[Платёж] Пользователь: %d | Валюта: %s | Сумма: %d | Payload: %s | ChargeID: %s",
+	receipt := fmt.Sprintf(
+		"#Payment [Платёж] Пользователь: %d | Валюта: %s | Сумма: %d | Payload: %s | ChargeID: %s",
 		message.From.ID,
 		payment.Currency,
 		payment.TotalAmount,
 		payment.InvoicePayload,
 		payment.TelegramPaymentChargeID,
 	)
+	logging.SendLogMessageToTelegram(ctx, ctx.Bot(), h.app.Config.LogChatId, receipt)
+	log.Printf(receipt)
 
 	// Вызов сервиса
 	err := h.paymentService.ProcessSuccessfulPayment(ctx, payment, message.From.ID)

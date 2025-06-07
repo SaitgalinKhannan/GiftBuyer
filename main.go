@@ -53,10 +53,10 @@ func main() {
 		Payment:  service.NewPaymentService(repos.Payment, repos.User),
 		User:     service.NewUserService(repos.User),
 		Settings: service.NewSettingsService(repos.Settings),
-		Gift:     service.NewGiftService(repos.Gift, cfg),
+		Gift:     service.NewGiftService(repos.Gift, repos.User, repos.Settings, cfg),
 	}
 
-	bot, err := NewBot(cfg.BotToken, WithDefaultLogger(true, true))
+	bot, err := NewBot(cfg.BotToken, WithDefaultLogger(false, true))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

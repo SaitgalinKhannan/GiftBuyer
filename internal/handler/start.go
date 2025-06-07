@@ -1,32 +1,34 @@
 package handler
 
 import (
+	"GiftBuyer/app"
 	. "GiftBuyer/internal/keyboard"
-	"GiftBuyer/internal/service"
+	"GiftBuyer/logging"
 	"fmt"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
-func HandleStartCommand(userService service.UserService) (th.Handler, th.Predicate) {
+func HandleStartCommand(a *app.App) (th.Handler, th.Predicate) {
 	return func(ctx *th.Context, update telego.Update) error {
-		user, err := userService.GetByTelegramID(ctx, update.Message.Chat.ID)
+		user, err := a.Services.User.GetByTelegramID(ctx, update.Message.Chat.ID)
 
 		if err != nil {
 			return err
 		}
 
 		if user == nil {
-			createErr := userService.Create(ctx, update.Message.From)
+			createErr := a.Services.User.Create(ctx, update.Message.From)
 			if createErr != nil {
+				logging.SendLogErrorToTelegram(ctx, ctx.Bot(), a.Config.LogChatId, createErr)
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					tu.ID(update.Message.Chat.ID),
 					"Не удалось зарегистрировать вас в системе, обратитесь в поддержку!",
 				))
 			}
 		} else {
-			err := userService.CompareAndUpdate(ctx, user, update.Message.From)
+			err := a.Services.User.CompareAndUpdate(ctx, user, update.Message.From)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -42,7 +44,9 @@ func HandleStartCommand(userService service.UserService) (th.Handler, th.Predica
 		)
 
 		if err != nil {
-			return fmt.Errorf("failed to send start message: %w", err) // ✅ Возвращаем ошибку
+			err = fmt.Errorf("failed to send start message: %w", err)
+			logging.SendLogErrorToTelegram(ctx, ctx.Bot(), a.Config.LogChatId, err)
+			return err // ✅ Возвращаем ошибку
 		}
 
 		return nil

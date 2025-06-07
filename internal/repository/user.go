@@ -20,13 +20,15 @@ func NewUserRepository(db *database.DB) UserRepository {
 
 func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 	query := `
-		INSERT INTO users (telegram_id, username, balance, is_active)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (telegram_id, username, first_name, last_name, balance, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at`
 
 	err := r.db.QueryRowxContext(ctx, query,
 		user.TelegramID,
 		user.Username,
+		user.FirstName,
+		user.LastName,
 		user.Balance,
 		user.IsActive,
 	).Scan(&user.ID, &user.CreatedAt)
@@ -41,7 +43,7 @@ func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 func (r *userRepository) GetByTelegramID(ctx context.Context, telegramID int64) (*model.User, error) {
 	var user model.User
 	query := `
-		SELECT id, telegram_id, username, balance, created_at, is_active
+		SELECT id, telegram_id, username, first_name, last_name, balance, created_at, is_active
 		FROM users
 		WHERE telegram_id = $1`
 
@@ -54,6 +56,40 @@ func (r *userRepository) GetByTelegramID(ctx context.Context, telegramID int64) 
 	}
 
 	return &user, nil
+}
+
+func (r *userRepository) GetByID(ctx context.Context, telegramID int64) (*model.User, error) {
+	var user model.User
+	query := `
+		SELECT id, telegram_id, username, first_name, last_name, balance, created_at, is_active
+		FROM users
+		WHERE telegram_id = $1`
+
+	err := r.db.GetContext(ctx, &user, query, telegramID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get user by id: %w", err)
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) GetAll(ctx context.Context) ([]*model.User, error) {
+	var users []*model.User
+	query := `
+		SELECT id, telegram_id, username, first_name, last_name, balance, created_at, is_active
+		FROM users
+		WHERE is_active = true
+		ORDER BY created_at DESC`
+
+	err := r.db.SelectContext(ctx, &users, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users: %w", err)
+	}
+
+	return users, nil
 }
 
 func (r *userRepository) UpdateBalance(ctx context.Context, telegramID int64, amount int) error {
@@ -92,25 +128,6 @@ func (r *userRepository) GetBalance(ctx context.Context, telegramID int64) (floa
 	}
 
 	return balance, nil
-}
-
-// GetByID Дополнительные полезные методы
-func (r *userRepository) GetByID(ctx context.Context, telegramID int64) (*model.User, error) {
-	var user model.User
-	query := `
-		SELECT id, telegram_id, username, balance, created_at, is_active
-		FROM users
-		WHERE telegram_id = $1`
-
-	err := r.db.GetContext(ctx, &user, query, telegramID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get user by id: %w", err)
-	}
-
-	return &user, nil
 }
 
 func (r *userRepository) Update(ctx context.Context, user *model.User) error {
@@ -227,7 +244,7 @@ func (r *userRepository) DecrementBalance(ctx context.Context, telegramID int64,
 func (r *userRepository) GetUsersWithMinBalance(ctx context.Context, minBalance float64) ([]*model.User, error) {
 	var users []*model.User
 	query := `
-		SELECT id, telegram_id, username, balance, created_at, is_active
+		SELECT id, telegram_id, username, first_name, last_name, balance, created_at, is_active
 		FROM users
 		WHERE balance >= $1 AND is_active = true
 		ORDER BY created_at DESC`

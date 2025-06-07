@@ -4,7 +4,7 @@ import "time"
 
 type UserSettings struct {
 	ID             int       `json:"id" db:"id"`
-	UserID         int64     `json:"user_id" db:"user_id"`
+	UserID         int       `json:"user_id" db:"user_id"`
 	AutoBuyEnabled bool      `json:"auto_buy_enabled" db:"auto_buy_enabled"`
 	PriceLimitFrom *int      `json:"price_limit_from,omitempty" db:"price_limit_from"`
 	PriceLimitTo   *int      `json:"price_limit_to,omitempty" db:"price_limit_to"`

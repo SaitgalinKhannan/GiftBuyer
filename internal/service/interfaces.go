@@ -39,7 +39,8 @@ type GiftService interface {
 	CompareGiftLists(gifts []*model.Gift, telegramGifts []telego.Gift) []telego.Gift
 	GetAvailableGifts(ctx context.Context, bot *telego.Bot) ([]telego.Gift, error)
 	NotifyUsers(ctx context.Context, newGifts []telego.Gift, bot *telego.Bot) error
-	BuyGift(ctx *th.Context, gift telego.Gift, user *model.User) error
+	BuyGiftForChannel(ctx context.Context, gift telego.Gift, channel string, bot *telego.Bot) error
+	BuyGiftForUser(ctx context.Context, gift telego.Gift, user *model.User, bot *telego.Bot) error
 	CheckAndProcessNewGifts(ctx context.Context, bot *telego.Bot) error
 }
 

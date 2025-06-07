@@ -1,6 +1,9 @@
 package logging
 
 import (
+	"context"
+	"github.com/mymmrac/telego"
+	tu "github.com/mymmrac/telego/telegoutil"
 	"io"
 	"log"
 	"os"
@@ -19,4 +22,20 @@ func InitLogger() (*os.File, error) {
 	log.SetFlags(log.LstdFlags)
 
 	return logFile, nil
+}
+
+func SendLogErrorToTelegram(ctx context.Context, bot *telego.Bot, chatID int64, err error) {
+	sendLog(ctx, bot, chatID, "❌ "+err.Error())
+}
+
+func SendLogMessageToTelegram(ctx context.Context, bot *telego.Bot, chatID int64, message string) {
+	sendLog(ctx, bot, chatID, message)
+}
+
+// Вспомогательная функция
+func sendLog(ctx context.Context, bot *telego.Bot, chatID int64, text string) {
+	_, _ = bot.SendMessage(ctx, tu.Message(
+		telego.ChatID{ID: chatID},
+		text,
+	))
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"GiftBuyer/app"
+	"GiftBuyer/logging"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -14,13 +15,14 @@ func RegisterHandlers(bh *th.BotHandler, a *app.App) {
 		log.Fatal("Bot handler or app is nil")
 	}
 
-	paymentHandler := NewPaymentHandler(a.Services.Payment, a.StateStorage)
+	paymentHandler := NewPaymentHandler(a.Services.Payment, a)
 
 	// Middleware для логирования ошибок
 	bh.Use(func(ctx *th.Context, update telego.Update) error {
 		err := ctx.Next(update)
 		if err != nil {
 			//log.Printf("Global error handler: %v\n", err)
+			logging.SendLogErrorToTelegram(ctx, ctx.Bot(), a.Config.LogChatId, err)
 			if update.Message != nil {
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					update.Message.Chat.ChatID(),
@@ -34,29 +36,15 @@ func RegisterHandlers(bh *th.BotHandler, a *app.App) {
 	bh.Use(func(ctx *th.Context, update telego.Update) error {
 		defer func() {
 			if r := recover(); r != nil {
+				logging.SendLogMessageToTelegram(ctx, ctx.Bot(), a.Config.LogChatId, "Recovered from panic in register.go")
 				log.Printf("Recovered from panic: %v\nStack: %s", r, debug.Stack())
 			}
 		}()
 		return ctx.Next(update)
 	})
 
-	/*bh.Handle(func(ctx *th.Context, update telego.Update) error {
-		err := ctx.Bot().SendGift(ctx, &telego.SendGiftParams{
-			UserID: 538321015,
-			GiftID: "5170233102089322756",
-			Text:   "🎁 Специальный подарок для тебя!",
-		})
-
-		if err != nil {
-			fmt.Println("Ошибка отправки подарка:", err)
-			return err
-		}
-
-		return nil
-	}, th.CommandEqual("gift"))*/
-
 	bh.Handle(paymentHandler.HandlePayment())
-	bh.Handle(HandleStartCommand(a.Services.User))
+	bh.Handle(HandleStartCommand(a))
 	bh.Handle(paymentHandler.HandleTopUpBalanceCallback())
 	bh.Handle(HandleCallback(a))
 	bh.Handle(HandleGifts())

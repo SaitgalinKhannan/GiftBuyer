@@ -38,6 +38,25 @@ func (r *settingsRepository) GetByUserID(ctx context.Context, userID int) (*mode
 	return &settings, nil
 }
 
+func (r *settingsRepository) GetAll(ctx context.Context) ([]*model.UserSettings, error) {
+	var settings []*model.UserSettings
+	query := `
+        SELECT id, user_id, auto_buy_enabled, price_limit_from, 
+               price_limit_to, supply_limit, auto_buy_cycles, channels,
+               created_at, updated_at
+        FROM user_settings`
+
+	err := r.db.SelectContext(ctx, &settings, query)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // Настройки не найдены
+		}
+		return nil, fmt.Errorf("failed to get all users settings: %w", err)
+	}
+
+	return settings, nil
+}
+
 func (r *settingsRepository) Update(ctx context.Context, settings *model.UserSettings) error {
 	query := `
         UPDATE user_settings

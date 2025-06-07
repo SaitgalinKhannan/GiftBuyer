@@ -15,6 +15,7 @@ type Config struct {
 	LogLevel              string
 	MonitorInterval       int
 	NotificationChannelId int64
+	LogChatId             int64
 }
 
 func Load() *Config {
@@ -37,6 +38,7 @@ func Load() *Config {
 
 	monitorInterval, _ := strconv.Atoi(getEnv("MONITOR_INTERVAL", "10"))
 	notificationChannelId, _ := strconv.ParseInt(os.Getenv("NOTIFICATION_CHANNEL_ID"), 10, 64)
+	logChatId, _ := strconv.ParseInt(os.Getenv("LOG_CHAT_ID"), 10, 64)
 
 	return &Config{
 		BotToken:              os.Getenv("BOT_TOKEN"),
@@ -45,6 +47,7 @@ func Load() *Config {
 		LogLevel:              getEnv("LOG_LEVEL", "info"),
 		MonitorInterval:       monitorInterval,
 		NotificationChannelId: notificationChannelId,
+		LogChatId:             logChatId,
 	}
 }
 

@@ -2,7 +2,9 @@ package scheduler
 
 import (
 	"GiftBuyer/app"
+	"GiftBuyer/logging"
 	"context"
+	"fmt"
 	"log"
 	"runtime/debug"
 	"time"
@@ -28,17 +30,20 @@ func StartGiftWatcher(ctx context.Context, a *app.App) {
 	for {
 		select {
 		case <-ctx.Done():
+			logging.SendLogMessageToTelegram(ctx, a.Bot, a.Config.LogChatId, "Завершение фоновой задачи")
 			log.Println("Завершение фоновой задачи")
 			return
 		case t := <-ticker.C:
-			log.Printf("Выполняю задачу в %v", t)
+			fmt.Printf("Выполняю задачу в %v\n", t)
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
+						logging.SendLogMessageToTelegram(ctx, a.Bot, a.Config.LogChatId, "Восстановлено после паники telegram_gift_watcher.go")
 						log.Printf("Восстановлено после паники: %v\n%s", r, debug.Stack())
 					}
 				}()
 				if err := a.Services.Gift.CheckAndProcessNewGifts(ctx, a.Bot); err != nil {
+					logging.SendLogErrorToTelegram(ctx, a.Bot, a.Config.LogChatId, err)
 					log.Printf("Ошибка проверки подарков: %v", err)
 				}
 			}()
