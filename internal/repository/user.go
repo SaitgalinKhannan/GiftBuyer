@@ -92,13 +92,13 @@ func (r *userRepository) GetAll(ctx context.Context) ([]*model.User, error) {
 	return users, nil
 }
 
-func (r *userRepository) UpdateBalance(ctx context.Context, telegramID int64, amount int) error {
+func (r *userRepository) UpdateBalance(ctx context.Context, telegramID int64, balance int) error {
 	query := `
 		UPDATE users
-		SET balance = balance + $1
+		SET balance = $1
 		WHERE telegram_id = $2`
 
-	result, err := r.db.ExecContext(ctx, query, amount, telegramID)
+	result, err := r.db.ExecContext(ctx, query, balance, telegramID)
 	if err != nil {
 		return fmt.Errorf("failed to update balance: %w", err)
 	}

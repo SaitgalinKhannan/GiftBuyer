@@ -255,6 +255,7 @@ func (g *giftService) processUserAutoBuy(ctx context.Context, user *model.User, 
 
 			// Обновляем баланс и остатки
 			user.Balance -= gift.StarCount
+			fmt.Printf("Баланс юзера ID %d = %d\n", user.ID, user.Balance)
 			_ = g.UpdateUserBalance(ctx, user)
 		}
 	}
