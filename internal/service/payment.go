@@ -34,7 +34,7 @@ func (s *paymentService) ProcessSuccessfulPayment(ctx *th.Context, payment *tele
 		return fmt.Errorf("user not found ID %d: %w", userID, err)
 	}
 
-	err = s.userRepo.UpdateBalance(ctx, userID, payment.TotalAmount)
+	err = s.userRepo.UpdateBalance(ctx, userID, user.Balance+payment.TotalAmount)
 	if err != nil {
 		return fmt.Errorf("unable to update user balance with ID %d : %w", userID, err)
 	}
