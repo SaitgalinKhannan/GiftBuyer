@@ -6,13 +6,14 @@ import (
 	"GiftBuyer/internal/utils"
 	"context"
 	"fmt"
-	. "github.com/mymmrac/telego"
-	th "github.com/mymmrac/telego/telegohandler"
-	tu "github.com/mymmrac/telego/telegoutil"
 	"log"
 	"slices"
 	"strconv"
 	"strings"
+
+	. "github.com/mymmrac/telego"
+	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 // Предикат для обработки нажатий кнопок настройки
@@ -24,14 +25,16 @@ func isSettingsCallbackQuery(_ context.Context, update Update) bool {
 
 	// Список допустимых значений data
 	allowedData := map[string]struct{}{
-		"settings":        {},
-		"toggle_auto_buy": {},
-		"price_from":      {},
-		"price_to":        {},
-		"supply_limit":    {},
-		"auto_buy_cycles": {},
-		"channels":        {},
-		"add_channel":     {},
+		"login":             {},
+		"settings":          {},
+		"toggle_auto_buy":   {},
+		"only_premium_gift": {},
+		"price_from":        {},
+		"price_to":          {},
+		"supply_limit":      {},
+		"auto_buy_cycles":   {},
+		"channels":          {},
+		"add_channel":       {},
 	}
 
 	// Проверяем, есть ли update.CallbackQuery.Data в allowedData
@@ -39,52 +42,40 @@ func isSettingsCallbackQuery(_ context.Context, update Update) bool {
 	return ok
 }
 
-func HandleSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
+func HandleSettingsCallback(a *app.App, updates <-chan Update) (th.Handler, th.Predicate) {
 	return func(ctx *th.Context, update Update) error {
 		userID := update.CallbackQuery.From.ID
+		chatID := update.CallbackQuery.Message.GetChat().ChatID()
+		msgID := update.CallbackQuery.Message.GetMessageID()
 		data := update.CallbackQuery.Data
 
 		switch data {
-		case "settings":
-			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
-
-			user, err := a.Services.User.GetByTelegramID(ctx, userID)
-
-			if err != nil {
-				return err
+		case "login":
+			if err := a.AccountManager.AddNewAccount(userID, a.Config.ApiID, a.Config.ApiHash, a.Bot, updates); err != nil {
+				log.Printf("Failed to add new account: %v\n", err)
 			}
-			if user == nil {
-				chatID := update.CallbackQuery.Message.GetChat().ChatID()
+		case "settings":
+			user, err := a.Services.User.GetByTelegramID(ctx, userID)
+			if err != nil {
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					chatID, "Пользователь не найден. Обратитесь в поддержку.",
 				))
-				return nil
+				return err
 			}
 
 			// Получаем текущие настройки
 			settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
-
-			if err != nil || settings == nil {
-				// Если настройки не найдены, создаем новые
-				err = a.Services.Settings.Create(ctx, user.ID)
-				if err != nil {
-					log.Printf("Ошибка создания настроек: %v", err)
-					return fmt.Errorf("ошибка создания настроек")
-				}
-
-				// Получаем созданные настройки
-				settings, err = a.Services.Settings.GetByUserID(ctx, user.ID)
-				if err != nil || settings == nil {
-					log.Printf("Не удалось получить настройки после создания: %v", err)
-					return fmt.Errorf("настройки не созданы")
-				}
+			if err != nil {
+				_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+				return err
 			}
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 			_, err = ctx.Bot().EditMessageText(ctx, &EditMessageTextParams{
 				ChatID:      update.CallbackQuery.Message.GetChat().ChatID(),
 				MessageID:   update.CallbackQuery.Message.GetMessageID(),
 				Text:        utils.FormatAutoBuySettings(settings),
-				ReplyMarkup: SettingsKeyboard(settings.AutoBuyEnabled),
+				ReplyMarkup: SettingsKeyboard(settings),
 				ParseMode:   "HTML",
 			})
 
@@ -96,36 +87,20 @@ func HandleSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 			user, err := a.Services.User.GetByTelegramID(ctx, userID)
-
 			if err != nil {
-				return err
-			}
-			if user == nil {
-				chatID := update.CallbackQuery.Message.GetChat().ChatID()
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					chatID, "Пользователь не найден. Обратитесь в поддержку.",
 				))
-				return nil
+				return err
 			}
 
 			// Получаем текущие настройки
 			settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
-
-			if err != nil || settings == nil {
-				// Если настройки не найдены, создаем новые
-				err = a.Services.Settings.Create(ctx, user.ID)
-				if err != nil {
-					log.Printf("Ошибка создания настроек: %v", err)
-					return fmt.Errorf("ошибка создания настроек")
-				}
-
-				// Получаем созданные настройки
-				settings, err = a.Services.Settings.GetByUserID(ctx, user.ID)
-				if err != nil || settings == nil {
-					log.Printf("Не удалось получить настройки после создания: %v", err)
-					return fmt.Errorf("настройки не созданы")
-				}
+			if err != nil {
+				_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+				return err
 			}
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 			// Меняем состояние автопокупки
 			settings.AutoBuyEnabled = !settings.AutoBuyEnabled
@@ -141,7 +116,49 @@ func HandleSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 				ChatID:      update.CallbackQuery.Message.GetChat().ChatID(),
 				MessageID:   update.CallbackQuery.Message.GetMessageID(),
 				Text:        utils.FormatAutoBuySettings(settings),
-				ReplyMarkup: SettingsKeyboard(settings.AutoBuyEnabled),
+				ReplyMarkup: SettingsKeyboard(settings),
+				ParseMode:   "HTML",
+			})
+
+			if err != nil {
+				return err
+			}
+
+		case "only_premium_gift":
+			user, err := a.Services.User.GetByTelegramID(ctx, userID)
+			if err != nil {
+				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
+					chatID, "Пользователь не найден. Обратитесь в поддержку.",
+				))
+				return err
+			}
+
+			// Получаем текущие настройки
+			settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
+			if err != nil {
+				_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+				return err
+			}
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
+
+			// Меняем состояние автопокупки
+			settings.OnlyPremiumGift = !settings.OnlyPremiumGift
+			err = a.Services.Settings.Update(ctx, settings)
+
+			if err != nil {
+				log.Printf("Ошибка обновления настроек: %v", err)
+				return fmt.Errorf("ошибка обновления настроек")
+			}
+
+			fmt.Printf("AutoBuyEnabled: %t\n", settings.AutoBuyEnabled)
+			fmt.Printf("OnlyPremiumGift: %t\n", settings.OnlyPremiumGift)
+
+			// Обновляем сообщение с новой клавиатурой
+			_, err = ctx.Bot().EditMessageText(ctx, &EditMessageTextParams{
+				ChatID:      update.CallbackQuery.Message.GetChat().ChatID(),
+				MessageID:   update.CallbackQuery.Message.GetMessageID(),
+				Text:        utils.FormatAutoBuySettings(settings),
+				ReplyMarkup: SettingsKeyboard(settings),
 				ParseMode:   "HTML",
 			})
 
@@ -221,13 +238,9 @@ func HandleSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 
 			a.StateStorage.ClearState(userID)
 
-			userID := update.CallbackQuery.From.ID
-			chatID := update.CallbackQuery.Message.GetChat().ChatID()
-			msgID := update.CallbackQuery.Message.GetMessageID()
-
 			// Получаем пользователя
 			user, err := a.Services.User.GetByTelegramID(ctx, userID)
-			if err != nil || user == nil {
+			if err != nil {
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					chatID, "Пользователь не найден. Обратитесь в поддержку.",
 				))
@@ -236,17 +249,11 @@ func HandleSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 
 			// Получаем настройки
 			settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
-			if err != nil || settings == nil {
-				err = a.Services.Settings.Create(ctx, user.ID)
-				if err != nil {
-					log.Printf("Ошибка создания настроек: %v", err)
-					return err
-				}
-				settings, err = a.Services.Settings.GetByUserID(ctx, user.ID)
-				if err != nil || settings == nil {
-					return fmt.Errorf("настройки не созданы")
-				}
+			if err != nil {
+				_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+				return err
 			}
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 			channels := utils.StringToChannels(settings.Channels)
 
@@ -267,10 +274,6 @@ func HandleSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{
 				CallbackQueryID: update.CallbackQuery.ID,
 			})
-
-			userID := update.CallbackQuery.From.ID
-			chatID := update.CallbackQuery.Message.GetChat().ChatID()
-			msgID := update.CallbackQuery.Message.GetMessageID()
 
 			// Обновляем сообщение
 			_, err := ctx.Bot().EditMessageText(ctx, &EditMessageTextParams{
@@ -312,7 +315,7 @@ func HandlePriceLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 
 		// Получаем пользователя
 		user, err := a.Services.User.GetByTelegramID(ctx, userID)
-		if err != nil || user == nil {
+		if err != nil {
 			_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 				chatID, "Пользователь не найден. Обратитесь в поддержку.",
 			))
@@ -321,17 +324,11 @@ func HandlePriceLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 
 		// Получаем настройки
 		settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
-		if err != nil || settings == nil {
-			err = a.Services.Settings.Create(ctx, user.ID)
-			if err != nil {
-				log.Printf("Ошибка создания настроек: %v", err)
-				return err
-			}
-			settings, err = a.Services.Settings.GetByUserID(ctx, user.ID)
-			if err != nil || settings == nil {
-				return fmt.Errorf("настройки не созданы")
-			}
+		if err != nil {
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+			return err
 		}
+		_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 		// Извлекаем тип и значение из callback_data
 		callbackData := update.CallbackQuery.Data
@@ -357,8 +354,8 @@ func HandlePriceLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 		case "nil":
 			value = nil
 		default:
-			num, err := strconv.Atoi(rawValue)
-			if err != nil {
+			num, parseIntErr := strconv.Atoi(rawValue)
+			if parseIntErr != nil {
 				// Некорректное значение — показываем ошибку
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					chatID, "Некорректное значение лимита. Попробуйте ещё раз.",
@@ -379,7 +376,7 @@ func HandlePriceLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 		// Сохраняем изменения
 		err = a.Services.Settings.Update(ctx, settings)
 		if err != nil {
-			log.Printf("Ошибка обновления настроек: %v", err)
+			log.Printf("Ошибка обновления лимитов цены: %v", err)
 			return err
 		}
 
@@ -388,7 +385,7 @@ func HandlePriceLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 			ChatID:      chatID,
 			MessageID:   msgID,
 			Text:        utils.FormatAutoBuySettings(settings),
-			ReplyMarkup: SettingsKeyboard(settings.AutoBuyEnabled),
+			ReplyMarkup: SettingsKeyboard(settings),
 			ParseMode:   "HTML",
 		})
 
@@ -417,7 +414,7 @@ func HandleSupplyLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 
 		// Получаем пользователя
 		user, err := a.Services.User.GetByTelegramID(ctx, userID)
-		if err != nil || user == nil {
+		if err != nil {
 			_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 				chatID, "Пользователь не найден. Обратитесь в поддержку.",
 			))
@@ -426,17 +423,11 @@ func HandleSupplyLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 
 		// Получаем настройки
 		settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
-		if err != nil || settings == nil {
-			err = a.Services.Settings.Create(ctx, user.ID)
-			if err != nil {
-				log.Printf("Ошибка создания настроек: %v", err)
-				return err
-			}
-			settings, err = a.Services.Settings.GetByUserID(ctx, user.ID)
-			if err != nil || settings == nil {
-				return fmt.Errorf("настройки не созданы")
-			}
+		if err != nil {
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+			return err
 		}
+		_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 		// Извлекаем значение из callback_data
 		callbackData := update.CallbackQuery.Data
@@ -465,7 +456,7 @@ func HandleSupplyLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 		// Сохраняем изменения
 		err = a.Services.Settings.Update(ctx, settings)
 		if err != nil {
-			log.Printf("Ошибка обновления настроек: %v", err)
+			log.Printf("Ошибка обновления лимита кол-ва подарков: %v", err)
 			return err
 		}
 
@@ -474,7 +465,7 @@ func HandleSupplyLimitUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 			ChatID:      chatID,
 			MessageID:   msgID,
 			Text:        utils.FormatAutoBuySettings(settings),
-			ReplyMarkup: SettingsKeyboard(settings.AutoBuyEnabled),
+			ReplyMarkup: SettingsKeyboard(settings),
 			ParseMode:   "HTML",
 		})
 		if err != nil {
@@ -502,7 +493,7 @@ func HandleAutoBuyCyclesUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 
 		// Получаем пользователя
 		user, err := a.Services.User.GetByTelegramID(ctx, userID)
-		if err != nil || user == nil {
+		if err != nil {
 			_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 				chatID, "Пользователь не найден. Обратитесь в поддержку.",
 			))
@@ -511,17 +502,11 @@ func HandleAutoBuyCyclesUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 
 		// Получаем настройки
 		settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
-		if err != nil || settings == nil {
-			err = a.Services.Settings.Create(ctx, user.ID)
-			if err != nil {
-				log.Printf("Ошибка создания настроек: %v", err)
-				return err
-			}
-			settings, err = a.Services.Settings.GetByUserID(ctx, user.ID)
-			if err != nil || settings == nil {
-				return fmt.Errorf("настройки не созданы")
-			}
+		if err != nil {
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+			return err
 		}
+		_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 		// Извлекаем значение из callback_data
 		callbackData := update.CallbackQuery.Data
@@ -534,8 +519,8 @@ func HandleAutoBuyCyclesUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 		case "infinite":
 			value = -1 // Используем -1 для обозначения бесконечных циклов
 		default:
-			num, err := strconv.Atoi(rawValue)
-			if err != nil {
+			num, parseIntErr := strconv.Atoi(rawValue)
+			if parseIntErr != nil {
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					chatID, "Некорректное значение циклов. Попробуйте ещё раз.",
 				))
@@ -550,7 +535,7 @@ func HandleAutoBuyCyclesUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 		// Сохраняем изменения
 		err = a.Services.Settings.Update(ctx, settings)
 		if err != nil {
-			log.Printf("Ошибка обновления настроек: %v", err)
+			log.Printf("Ошибка обновления циклов покупки: %v", err)
 			return err
 		}
 
@@ -559,7 +544,7 @@ func HandleAutoBuyCyclesUpdateCallback(a *app.App) (th.Handler, th.Predicate) {
 			ChatID:      chatID,
 			MessageID:   msgID,
 			Text:        utils.FormatAutoBuySettings(settings),
-			ReplyMarkup: SettingsKeyboard(settings.AutoBuyEnabled),
+			ReplyMarkup: SettingsKeyboard(settings),
 			ParseMode:   "HTML",
 		})
 		if err != nil {
@@ -607,13 +592,9 @@ func HandleChannelSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 		}
 		switch callbackData {
 		case "channel":
-			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{
-				CallbackQueryID: update.CallbackQuery.ID,
-			})
-
 			// Получаем пользователя
 			user, err := a.Services.User.GetByTelegramID(ctx, userID)
-			if err != nil || user == nil {
+			if err != nil {
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					chatID, "Пользователь не найден. Обратитесь в поддержку.",
 				))
@@ -621,14 +602,16 @@ func HandleChannelSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 			}
 
 			// Получаем настройки
-			settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
-			if err != nil || settings == nil {
-				return fmt.Errorf("настройки не найдены")
+			_, err = a.Services.Settings.GetByUserID(ctx, user.ID)
+			if err != nil {
+				_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+				return err
 			}
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 			// Извлекаем значение из callback_data
-			callbackData := update.CallbackQuery.Data
-			username := strings.TrimPrefix(callbackData, "channel=")
+			data := update.CallbackQuery.Data
+			username := strings.TrimPrefix(data, "channel=")
 
 			// Обновляем сообщение
 			_, err = ctx.Bot().EditMessageText(ctx, &EditMessageTextParams{
@@ -642,13 +625,9 @@ func HandleChannelSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 				return err
 			}
 		case "delete_channel":
-			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{
-				CallbackQueryID: update.CallbackQuery.ID,
-			})
-
 			// Получаем пользователя
 			user, err := a.Services.User.GetByTelegramID(ctx, userID)
-			if err != nil || user == nil {
+			if err != nil {
 				_, _ = ctx.Bot().SendMessage(ctx, tu.Message(
 					chatID, "Пользователь не найден. Обратитесь в поддержку.",
 				))
@@ -657,13 +636,15 @@ func HandleChannelSettingsCallback(a *app.App) (th.Handler, th.Predicate) {
 
 			// Получаем настройки
 			settings, err := a.Services.Settings.GetByUserID(ctx, user.ID)
-			if err != nil || settings == nil {
-				return fmt.Errorf("настройки не найдены")
+			if err != nil {
+				_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID, Text: err.Error(), ShowAlert: true})
+				return err
 			}
+			_ = ctx.Bot().AnswerCallbackQuery(ctx, &AnswerCallbackQueryParams{CallbackQueryID: update.CallbackQuery.ID})
 
 			// Извлекаем значение из callback_data
-			callbackData := update.CallbackQuery.Data
-			username := strings.TrimPrefix(callbackData, "delete_channel=")
+			data := update.CallbackQuery.Data
+			username := strings.TrimPrefix(data, "delete_channel=")
 			channels := utils.StringToChannels(settings.Channels)
 
 			// Находим индекс элемента

@@ -2,6 +2,7 @@ package keyboard
 
 import (
 	"fmt"
+
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
 )
@@ -17,10 +18,10 @@ func GoMainKeyboard() *telego.InlineKeyboardMarkup {
 func StartKeyboard() *telego.InlineKeyboardMarkup {
 	return tu.InlineKeyboard(
 		tu.InlineKeyboardRow(
-			tu.InlineKeyboardButton("⭐️ Пополнить баланс").WithCallbackData("top_up_balance"),
+			tu.InlineKeyboardButton("📝 Вход в аккаунт").WithCallbackData("login"),
 		),
 		tu.InlineKeyboardRow(
-			tu.InlineKeyboardButton("👤 Профиль").WithCallbackData("profile"),
+			// tu.InlineKeyboardButton("👤 Профиль").WithCallbackData("profile"),
 			tu.InlineKeyboardButton("⚙️ Настройки автопокупки").WithCallbackData("settings"),
 		),
 		tu.InlineKeyboardRow(

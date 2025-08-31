@@ -2,11 +2,13 @@ package app
 
 import (
 	"GiftBuyer/config"
+	"GiftBuyer/internal/client"
 	"GiftBuyer/internal/database"
 	"GiftBuyer/internal/repository"
 	"GiftBuyer/internal/service"
-	"github.com/mymmrac/telego"
 	"sync"
+
+	"github.com/mymmrac/telego"
 )
 
 type State uint
@@ -23,12 +25,13 @@ type StateStorage struct {
 }
 
 type App struct {
-	DB           *database.DB
-	Repos        *repository.Repositories
-	Services     *service.Services
-	Bot          *telego.Bot
-	Config       *config.Config
-	StateStorage *StateStorage
+	DB             *database.DB
+	Repos          *repository.Repositories
+	Services       *service.Services
+	Bot            *telego.Bot
+	Config         *config.Config
+	StateStorage   *StateStorage
+	AccountManager *client.AccountManager
 }
 
 // GetState Получить текущее состояние пользователя

@@ -11,13 +11,13 @@ import (
 )
 
 func StartGiftWatcher(ctx context.Context, a *app.App) {
-	// Дефолтный интервал: 10 секунд
-	interval := 10 * time.Second
+	// Дефолтный интервал: 5 секунд
+	interval := 5 * time.Second
 
 	// Проверяем, есть ли конфиг и задан ли интервал
 	if a == nil || a.Config == nil || a.Config.MonitorInterval <= 0 {
-		log.Println("Используется дефолтный интервал (10s), так как MonitorInterval не задан или <= 0")
-		interval = 10 * time.Second
+		log.Println("Используется дефолтный интервал (5s), так как MonitorInterval не задан или <= 0")
+		interval = 5 * time.Second
 	} else {
 		interval = time.Duration(a.Config.MonitorInterval) * time.Second
 	}

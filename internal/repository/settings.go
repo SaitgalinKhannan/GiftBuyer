@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -21,7 +22,7 @@ func NewSettingsRepository(db *database.DB) SettingsRepository {
 func (r *settingsRepository) GetByUserID(ctx context.Context, userID int) (*model.UserSettings, error) {
 	var settings model.UserSettings
 	query := `
-        SELECT id, user_id, auto_buy_enabled, price_limit_from, 
+        SELECT id, user_id, auto_buy_enabled, only_premium_gift, price_limit_from, 
                price_limit_to, supply_limit, auto_buy_cycles, channels,
                created_at, updated_at
         FROM user_settings
@@ -41,7 +42,7 @@ func (r *settingsRepository) GetByUserID(ctx context.Context, userID int) (*mode
 func (r *settingsRepository) GetAll(ctx context.Context) ([]*model.UserSettings, error) {
 	var settings []*model.UserSettings
 	query := `
-        SELECT id, user_id, auto_buy_enabled, price_limit_from, 
+        SELECT id, user_id, auto_buy_enabled, only_premium_gift, price_limit_from, 
                price_limit_to, supply_limit, auto_buy_cycles, channels,
                created_at, updated_at
         FROM user_settings`
@@ -61,16 +62,18 @@ func (r *settingsRepository) Update(ctx context.Context, settings *model.UserSet
 	query := `
         UPDATE user_settings
         SET auto_buy_enabled = $1,
-            price_limit_from = $2,
-            price_limit_to = $3,
-            supply_limit = $4,
-            auto_buy_cycles = $5,
-            channels = $6,
+            only_premium_gift = $2,
+            price_limit_from = $3,
+            price_limit_to = $4,
+            supply_limit = $5,
+            auto_buy_cycles = $6,
+            channels = $7,
             updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = $7`
+        WHERE user_id = $8`
 
 	_, err := r.db.ExecContext(ctx, query,
 		settings.AutoBuyEnabled,
+		settings.OnlyPremiumGift,
 		settings.PriceLimitFrom,
 		settings.PriceLimitTo,
 		settings.SupplyLimit,

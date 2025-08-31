@@ -2,10 +2,11 @@ package handler
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
-	"strings"
 )
 
 func HandleGifts() (th.Handler, th.Predicate) {

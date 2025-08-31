@@ -5,11 +5,12 @@ import (
 	. "GiftBuyer/internal/keyboard"
 	"GiftBuyer/internal/utils"
 	"fmt"
+	"strconv"
+	"strings"
+
 	. "github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
-	"strconv"
-	"strings"
 )
 
 func StateHandler(a *App) (th.Handler, th.Predicate) {

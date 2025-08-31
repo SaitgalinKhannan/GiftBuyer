@@ -8,10 +8,19 @@ import (
 
 // FormatAutoBuySettings формирует текст настроек автопокупки для отображения пользователю
 func FormatAutoBuySettings(settings *model.UserSettings) string {
+	if settings == nil {
+		return "Не удалось загрузить настройки"
+	}
+
 	// Форматируем статус автопокупки
 	status := "🔴 Выключено"
 	if settings.AutoBuyEnabled {
 		status = "🟢 Включено"
+	}
+
+	onlyPremiumGift := "🔴 Выключено"
+	if settings.OnlyPremiumGift {
+		onlyPremiumGift = "🟢 Включено"
 	}
 
 	// Форматируем лимит цены
@@ -39,6 +48,7 @@ func FormatAutoBuySettings(settings *model.UserSettings) string {
 	return fmt.Sprintf(
 		"<b>⚙️ Настройки автопокупки</b>\n"+
 			"<b>Статус:</b> %s\n\n"+
+			"<b>Только премиум подарки:</b> %s\n"+
 			"<b>Лимит цены:</b>\n"+
 			"От %s до %s ⭐️\n\n"+
 			"<b>Лимит саплая:</b>\n"+
@@ -46,6 +56,7 @@ func FormatAutoBuySettings(settings *model.UserSettings) string {
 			"<b>Количество циклов:</b>\n"+
 			"%s",
 		status,
+		onlyPremiumGift,
 		from,
 		to,
 		supply,

@@ -2,11 +2,12 @@ package logging
 
 import (
 	"context"
-	"github.com/mymmrac/telego"
-	tu "github.com/mymmrac/telego/telegoutil"
 	"io"
 	"log"
 	"os"
+
+	"github.com/mymmrac/telego"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 func InitLogger() (*os.File, error) {

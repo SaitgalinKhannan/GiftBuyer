@@ -3,14 +3,15 @@ package handler
 import (
 	"GiftBuyer/app"
 	"GiftBuyer/logging"
+	"log"
+	"runtime/debug"
+
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
-	"log"
-	"runtime/debug"
 )
 
-func RegisterHandlers(bh *th.BotHandler, a *app.App) {
+func RegisterHandlers(bh *th.BotHandler, a *app.App, updates <-chan telego.Update) {
 	if bh == nil || a == nil {
 		log.Fatal("Bot handler or app is nil")
 	}
@@ -49,7 +50,7 @@ func RegisterHandlers(bh *th.BotHandler, a *app.App) {
 	bh.Handle(HandleCallback(a))
 	bh.Handle(HandleGifts())
 	bh.Handle(StateHandler(a))
-	bh.Handle(HandleSettingsCallback(a))
+	bh.Handle(HandleSettingsCallback(a, updates))
 	bh.Handle(HandlePriceLimitUpdateCallback(a))
 	bh.Handle(HandleSupplyLimitUpdateCallback(a))
 	bh.Handle(HandleAutoBuyCyclesUpdateCallback(a))

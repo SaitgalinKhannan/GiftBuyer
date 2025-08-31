@@ -3,6 +3,7 @@ package main
 import (
 	. "GiftBuyer/app"
 	"GiftBuyer/config"
+	"GiftBuyer/internal/client"
 	"GiftBuyer/internal/database"
 	"GiftBuyer/internal/handler"
 	"GiftBuyer/internal/repository"
@@ -11,12 +12,15 @@ import (
 	"GiftBuyer/logging"
 	"context"
 	"fmt"
-	. "github.com/mymmrac/telego"
-	th "github.com/mymmrac/telego/telegohandler"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	. "github.com/mymmrac/telego"
+	th "github.com/mymmrac/telego/telegohandler"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -48,13 +52,19 @@ func main() {
 		Gift:     repository.NewGiftRepository(db),
 		Payment:  repository.NewPaymentRepository(db),
 		Settings: repository.NewSettingsRepository(db),
+		Account:  repository.NewAccountRepository(db),
 	}
 	services := &service.Services{
 		Payment:  service.NewPaymentService(repos.Payment, repos.User),
 		User:     service.NewUserService(repos.User),
 		Settings: service.NewSettingsService(repos.Settings),
 		Gift:     service.NewGiftService(repos.Gift, repos.User, repos.Settings, cfg),
+		Account:  service.NewAccountService(repos.Account),
 	}
+
+	// создание менеджера юзер ботов
+	accountManager := client.NewAccountManager(services.Account)
+	defer accountManager.Stop()
 
 	bot, err := NewBot(cfg.BotToken, WithDefaultLogger(false, true))
 	if err != nil {
@@ -80,6 +90,7 @@ func main() {
 		StateStorage: &StateStorage{
 			States: make(map[int64]State),
 		},
+		AccountManager: accountManager,
 	}
 
 	if botApp == nil {
@@ -100,7 +111,7 @@ func main() {
 	bh, _ := th.NewBotHandler(bot, updates)
 	// Stop handling updates
 	defer func() { _ = bh.Stop() }()
-	handler.RegisterHandlers(bh, botApp)
+	handler.RegisterHandlers(bh, botApp, updates)
 
 	_, err = bot.GetAvailableGifts(ctx)
 	if err != nil {
@@ -125,18 +136,70 @@ func main() {
 
 	// 4. Запускаем бота
 	go func() {
-		if err := bh.Start(); err != nil {
-			log.Printf("Ошибка при запуске BotHandler: %v", err)
+		if startErr := bh.Start(); startErr != nil {
+			log.Printf("Ошибка при запуске BotHandler: %v", startErr)
 		}
 	}()
 
-	// 5. Ожидаем сигнал завершения
+	// 5. Загружаем существующие аккаунты из БД
+	go func() {
+		log.Println("Loading existing accounts from database...")
+		if loadAccountsErr := botApp.AccountManager.LoadAccounts(bot, updates); loadAccountsErr != nil {
+			log.Printf("Warning: Failed to load accounts: %v\n", loadAccountsErr)
+		}
+
+		// Показываем список аккаунтов из БД
+		accounts, _ := botApp.AccountManager.GetAllAccounts()
+		if accounts == nil || len(accounts) == 0 {
+			log.Println("No accounts found in database. Please add accounts first.")
+			log.Println("Example: manager.AddNewAccount(accountID, apiID, apiHash)")
+			return
+		}
+
+		log.Printf("Found %d accounts in database:\n", len(accounts))
+		for _, acc := range accounts {
+			status := "active"
+			if !acc.IsActive {
+				status = "inactive"
+			}
+			log.Printf("  - ID: %d, Username: @%s, Name: %s %s, Status: %s\n", acc.ID, acc.Username, acc.FirstName, acc.LastName, status)
+		}
+
+		// Запускаем все загруженные аккаунты
+		if accounts != nil && len(accounts) > 0 {
+			if startAllErr := accountManager.StartAll(); startAllErr != nil {
+				log.Fatalf("Failed to start accounts: %v", startAllErr)
+			}
+
+			log.Println("All accounts are running. Press Ctrl+C to stop.")
+
+			// Пример использования клиента для отправки сообщения
+			go func() {
+				time.Sleep(5 * time.Second) // Ждем пока все запустится
+
+				// Получаем первый аккаунт из списка
+				if tgClient, getClientErr := accountManager.GetClient(accounts[0].ID); getClientErr == nil {
+					// Здесь можно использовать tgClient.API для работы с Telegram API
+					tgClient.Logger.Info("Client is ready for use", zap.String("username", tgClient.AccountInfo.Username))
+				}
+			}()
+
+			// Ждем завершения
+			select {}
+		} else {
+			log.Println("No active accounts to start.")
+		}
+	}()
+
+	// 6. Ожидаем сигнал завершения
 	<-sigChan
 	log.Println("Получен сигнал завершения. Остановка...")
 
-	// 6. Корректно завершаем работу
-	if err := bh.Stop(); err != nil {
-		log.Printf("Ошибка при остановке бота: %v", err)
+	// 7. Корректно завершаем работу
+	if stopErr := bh.Stop(); stopErr != nil {
+		log.Printf("Ошибка при остановке бота: %v", stopErr)
 	}
+	accountManager.Stop()
+
 	cancel()
 }

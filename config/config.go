@@ -2,10 +2,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -16,6 +17,8 @@ type Config struct {
 	MonitorInterval       int
 	NotificationChannelId int64
 	LogChatId             int64
+	ApiID                 int
+	ApiHash               string
 }
 
 func Load() *Config {
@@ -30,7 +33,7 @@ func Load() *Config {
 
 	if adminIDsStr != "" {
 		for _, idStr := range strings.Split(adminIDsStr, ",") {
-			if id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64); err == nil {
+			if id, parseIntErr := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64); parseIntErr == nil {
 				adminIDs = append(adminIDs, id)
 			}
 		}
@@ -39,6 +42,7 @@ func Load() *Config {
 	monitorInterval, _ := strconv.Atoi(getEnv("MONITOR_INTERVAL", "10"))
 	notificationChannelId, _ := strconv.ParseInt(os.Getenv("NOTIFICATION_CHANNEL_ID"), 10, 64)
 	logChatId, _ := strconv.ParseInt(os.Getenv("LOG_CHAT_ID"), 10, 64)
+	apiID, _ := strconv.ParseInt(os.Getenv("APP_ID"), 10, 64) // need to replace by int
 
 	return &Config{
 		BotToken:              os.Getenv("BOT_TOKEN"),
@@ -48,6 +52,8 @@ func Load() *Config {
 		MonitorInterval:       monitorInterval,
 		NotificationChannelId: notificationChannelId,
 		LogChatId:             logChatId,
+		ApiID:                 int(apiID),
+		ApiHash:               os.Getenv("APP_HASH"),
 	}
 }
 

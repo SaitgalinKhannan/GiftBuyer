@@ -1,7 +1,9 @@
 package keyboard
 
 import (
+	"GiftBuyer/internal/model"
 	"fmt"
+
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
 )
@@ -14,18 +16,27 @@ func GoToChannelsKeyboard() *telego.InlineKeyboardMarkup {
 	)
 }
 
-func SettingsKeyboard(autoBuyEnabled bool) *telego.InlineKeyboardMarkup {
+func SettingsKeyboard(settings *model.UserSettings) *telego.InlineKeyboardMarkup {
 	var turnAutoBuyButtonText string
-
-	if autoBuyEnabled {
+	if settings.AutoBuyEnabled {
 		turnAutoBuyButtonText = "🔴 Выключить"
 	} else {
 		turnAutoBuyButtonText = "🟢 Включить"
 	}
 
+	var onlyPremiumGiftButtonText string
+	if settings.OnlyPremiumGift {
+		onlyPremiumGiftButtonText = "🔴 Выключить premium подарки"
+	} else {
+		onlyPremiumGiftButtonText = "🟢 Включить premium подарки"
+	}
+
 	return tu.InlineKeyboard(
 		tu.InlineKeyboardRow(
 			tu.InlineKeyboardButton(turnAutoBuyButtonText).WithCallbackData("toggle_auto_buy"),
+		),
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(onlyPremiumGiftButtonText).WithCallbackData("only_premium_gift"),
 		),
 		tu.InlineKeyboardRow(
 			tu.InlineKeyboardButton("🔢 Лимит цены ОТ").WithCallbackData("price_from"),

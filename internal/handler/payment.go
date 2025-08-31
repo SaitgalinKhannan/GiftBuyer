@@ -7,10 +7,11 @@ import (
 	"GiftBuyer/logging"
 	"context"
 	"fmt"
+	"log"
+
 	. "github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
-	"log"
 )
 
 type PaymentHandler struct {
